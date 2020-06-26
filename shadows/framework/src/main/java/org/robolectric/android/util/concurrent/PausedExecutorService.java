@@ -9,7 +9,6 @@ import java.util.Queue;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -48,14 +47,8 @@ public class PausedExecutorService extends AbstractExecutorService {
 
     @Override
     public void run() {
-      Future<V> result = executor.submit(callable);
-      try {
-        set(result.get());
-      } catch (ExecutionException e) {
-        rethrowOriginalException(e);
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
+      Future<V> future = executor.submit(callable);
+      set(BackgroundExecutor.getFutureResultWithExceptionPreserved(future));
     }
   }
 
@@ -66,16 +59,6 @@ public class PausedExecutorService extends AbstractExecutorService {
               executorThread = new Thread(r);
               return executorThread;
             });
-  }
-
-  private static void rethrowOriginalException(ExecutionException e) throws RuntimeException {
-    // try to preserve original exception if possible
-    if (e.getCause() instanceof RuntimeException) {
-      throw (RuntimeException) e.getCause();
-    } else if (e.getCause() != null) {
-      throw new RuntimeException(e.getCause());
-    }
-    throw new RuntimeException(e);
   }
 
   /**
